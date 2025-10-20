@@ -12,4 +12,3 @@ dist/
 .vscode/
 *.sublime-workspace
 *.sublime-project
-celerybeat-schedule*
