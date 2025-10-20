@@ -7,6 +7,7 @@ from sqlalchemy import engine_from_config, pool
 
 from config import DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASS
 from src.database import Base
+from src.core.models import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
