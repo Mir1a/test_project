@@ -27,12 +27,6 @@ class Client(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    company: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    address: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     tickets: Mapped[list["Ticket"]] = relationship("Ticket", back_populates="client")
 
@@ -43,7 +37,7 @@ class Ticket(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[TicketStatus] = mapped_column(SQLEnum(TicketStatus), nullable=False, default=TicketStatus.OPEN)
+    status: Mapped[TicketStatus] = mapped_column(SQLEnum(TicketStatus), nullable=False, default=TicketStatus.NEW)
     priority: Mapped[TicketPriority] = mapped_column(SQLEnum(TicketPriority), nullable=False, default=TicketPriority.MEDIUM)
 
     client_id: Mapped[int] = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)

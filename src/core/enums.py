@@ -7,8 +7,9 @@ class UserRole(str, Enum):
 
 
 class TicketStatus(str, Enum):
-    OPEN = "open"
+    NEW = "new"
     IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
     CLOSED = "closed"
 
 
