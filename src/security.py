@@ -35,3 +35,12 @@ async def require_admin(current_user: User = Depends(get_current_user)):
             detail="Admin access required"
         )
     return current_user
+
+
+async def require_worker(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.WORKER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Worker access required"
+        )
+    return current_user

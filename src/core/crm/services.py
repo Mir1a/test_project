@@ -2,8 +2,10 @@
 import bcrypt
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from src.core.models import User
+from src.core.enums import UserRole
+from src.core.models import Ticket, User
 
 
 async def create_user(user_data, db_session: AsyncSession):
@@ -166,3 +168,167 @@ async def delete_user(user_id: int, db_session: AsyncSession):
     await db_session.commit()
     
     return {"message": "User deleted successfully"}
+
+
+async def get_all_tickets(skip: int, limit: int, search: str | None, status: str | None, db_session: AsyncSession):
+    count_stmt = select(func.count()).select_from(Ticket)
+    stmt = select(Ticket).options(
+        selectinload(Ticket.client),
+        selectinload(Ticket.assigned_to_user)
+    )
+    
+    if search:
+        count_stmt = count_stmt.where(Ticket.title.ilike(f"%{search}%"))
+        stmt = stmt.where(Ticket.title.ilike(f"%{search}%"))
+    
+    if status:
+        count_stmt = count_stmt.where(Ticket.status == status)
+        stmt = stmt.where(Ticket.status == status)
+    
+    total_result = await db_session.execute(count_stmt)
+    total = total_result.scalar()
+    
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db_session.execute(stmt)
+    tickets = result.scalars().all()
+    
+    return {
+        "total": total,
+        "tickets": tickets
+    }
+
+
+async def get_my_tickets(worker_id: int, skip: int, limit: int, search: str | None, status: str | None, db_session: AsyncSession):
+    count_stmt = select(func.count()).select_from(Ticket).where(Ticket.assigned_to_id == worker_id)
+    stmt = select(Ticket).options(
+        selectinload(Ticket.client),
+        selectinload(Ticket.assigned_to_user)
+    ).where(Ticket.assigned_to_id == worker_id)
+    
+    if search:
+        count_stmt = count_stmt.where(Ticket.title.ilike(f"%{search}%"))
+        stmt = stmt.where(Ticket.title.ilike(f"%{search}%"))
+    
+    if status:
+        count_stmt = count_stmt.where(Ticket.status == status)
+        stmt = stmt.where(Ticket.status == status)
+    
+    total_result = await db_session.execute(count_stmt)
+    total = total_result.scalar()
+    
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db_session.execute(stmt)
+    tickets = result.scalars().all()
+    
+    return {
+        "total": total,
+        "tickets": tickets
+    }
+
+
+async def assign_worker_to_ticket(ticket_id: int, assignment_data, db_session: AsyncSession):
+    stmt = select(Ticket).where(Ticket.id == ticket_id)
+    result = await db_session.execute(stmt)
+    ticket = result.scalar_one_or_none()
+    
+    if ticket is None:
+        raise ValueError("Ticket not found")
+    
+    if assignment_data.assigned_to_id is not None:
+        stmt = select(User).where(User.id == assignment_data.assigned_to_id)
+        result = await db_session.execute(stmt)
+        user = result.scalar_one_or_none()
+        
+        if user is None:
+            raise ValueError("User not found")
+        
+        if user.role != UserRole.WORKER:
+            raise ValueError("Can only assign workers to tickets")
+        
+        ticket.assigned_to_id = assignment_data.assigned_to_id
+    else:
+        ticket.assigned_to_id = None
+    
+    if assignment_data.status is not None:
+        ticket.status = assignment_data.status
+    
+    await db_session.commit()
+    await db_session.refresh(ticket)
+    
+    stmt = (
+        select(Ticket)
+        .options(
+            selectinload(Ticket.client),
+            selectinload(Ticket.assigned_to_user)
+        )
+        .where(Ticket.id == ticket_id)
+    )
+    result = await db_session.execute(stmt)
+    ticket = result.scalar_one()
+    
+    return ticket
+
+
+async def unassign_worker_from_ticket(ticket_id: int, db_session: AsyncSession):
+    stmt = select(Ticket).where(Ticket.id == ticket_id)
+    result = await db_session.execute(stmt)
+    ticket = result.scalar_one_or_none()
+    
+    if ticket is None:
+        raise ValueError("Ticket not found")
+    
+    ticket.assigned_to_id = None
+    
+    await db_session.commit()
+    await db_session.refresh(ticket)
+    
+    stmt = (
+        select(Ticket)
+        .options(
+            selectinload(Ticket.client),
+            selectinload(Ticket.assigned_to_user)
+        )
+        .where(Ticket.id == ticket_id)
+    )
+    result = await db_session.execute(stmt)
+    ticket = result.scalar_one()
+    
+    return ticket
+
+
+async def update_ticket_status(ticket_id: int, status_data, current_user, db_session: AsyncSession):
+    stmt = (
+        select(Ticket)
+        .options(
+            selectinload(Ticket.client),
+            selectinload(Ticket.assigned_to_user)
+        )
+        .where(Ticket.id == ticket_id)
+    )
+    result = await db_session.execute(stmt)
+    ticket = result.scalar_one_or_none()
+    
+    if ticket is None:
+        raise ValueError("Ticket not found")
+    
+    if current_user.role == UserRole.WORKER:
+        if ticket.assigned_to_id != current_user.id:
+            raise ValueError("You can only update status of your assigned tickets")
+    
+    ticket.status = status_data.status
+    
+    await db_session.commit()
+    await db_session.refresh(ticket)
+    
+    stmt = (
+        select(Ticket)
+        .options(
+            selectinload(Ticket.client),
+            selectinload(Ticket.assigned_to_user)
+        )
+        .where(Ticket.id == ticket_id)
+    )
+    result = await db_session.execute(stmt)
+    ticket = result.scalar_one()
+    
+    return ticket
