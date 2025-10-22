@@ -1,8 +1,6 @@
 services:
   app:
-    build: .
-    volumes:
-      - .:/app
+    image: m1ria/test_project:latest
     ports:
       - "8000:8000"
     environment:
@@ -15,7 +13,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: bash -c "uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: bash -c "uvicorn src.main:app --host 0.0.0.0 --port 8000"
 
   db:
     image: postgres:15

@@ -8,8 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
-COPY .env /app/.env
-
 EXPOSE 8000
 
 COPY entrypoint.sh /app/
